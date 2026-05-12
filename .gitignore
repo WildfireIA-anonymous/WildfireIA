@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+
+# Local data and generated artifacts
+data/
+experiments/
+logs/
+results/
+outputs/
+release/
+
+# Large model artifacts
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+
+# Local environment files
+.env
+.venv/
+venv/
+env/
+*.egg-info/
+
