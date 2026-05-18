@@ -1,61 +1,58 @@
 # WildfireIA Code Release
 
-This repository contains anonymous code for the WildfireIA benchmark. The
-benchmark evaluates whether public information available at wildfire discovery
-time can predict initial attack failure and remaining time to containment.
-
-The dataset is released separately on Hugging Face:
+This repository contains the anonymous code release for WildfireIA. The data are
+released separately on Hugging Face:
 
 <https://huggingface.co/datasets/WildfireIA/Anonymous-WildfireIA>
 
-The Hugging Face release contains canonical benchmark tables and Croissant
-metadata. Model-ready caches are intentionally not stored in this code
-repository; they can be regenerated from the canonical tables with
-`dataloader.py`.
+The Hugging Face repository contains **canonical benchmark tables only**. It
+does not contain model-ready caches. After cloning this code repository, place
+the Hugging Face canonical tables at the path shown below and regenerate caches
+with `dataloader.py`.
 
-## Repository Contents
+## Quick Start
 
-- `pipeline.py`: canonicalizes raw public-source inputs into benchmark tables.
-- `dataloader.py`: converts canonical tables into model-ready caches.
-- `train.py`: trains tabular, temporal, spatial, and spatiotemporal baselines.
-- `summarize_*.py`: summarizes full-test and ablation experiment outputs.
-- `scripts/prepare_hf_release.py`: prepares the anonymous Hugging Face data
-  release.
-
-## Installation
-
-Create a Python environment with the packages in `requirements.txt`. GPU
-training also requires a PyTorch build compatible with the local CUDA version.
+Clone this code repository and enter it:
 
 ```bash
+git clone https://github.com/WildfireIA-anonymous/WildfireIA.git
+cd WildfireIA
+```
+
+Install Python packages:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-For geospatial canonicalization from raw data, install optional system and
-Python geospatial dependencies compatible with `geopandas`, `rasterio`,
-`pyogrio`, and `pyproj`.
+PyTorch GPU wheels depend on the local CUDA version. If the default `torch`
+installation is not compatible with your system, install PyTorch following the
+official PyTorch instructions, then rerun `pip install -r requirements.txt`.
 
-## Data Layout
+Download the Hugging Face dataset into a temporary folder:
 
-After downloading or cloning the Hugging Face dataset, place or symlink its
-canonical tables under:
+```bash
+git lfs install
+git clone https://huggingface.co/datasets/WildfireIA/Anonymous-WildfireIA hf_data
+```
+
+Copy the canonical tables into the code repository:
+
+```bash
+mkdir -p data/canonical/raw_feature_tables
+rsync -a hf_data/data/canonical/raw_feature_tables/ data/canonical/raw_feature_tables/
+```
+
+The expected path is:
 
 ```text
 data/canonical/raw_feature_tables/
 ```
 
-The expected canonical directory contains files such as:
-
-```text
-fire_events_natural_2016_2020.parquet
-master_features_natural_2016_2020.parquet
-event_static_patch_375m_natural_2016_2020.parquet/
-event_weather_daily_patch_375m_natural_2016_2020.parquet/
-```
-
-## Generate Model-Ready Caches
-
-Task 1 full-input caches:
+Generate Task 1 model-ready caches from the canonical tables:
 
 ```bash
 python dataloader.py \
@@ -69,23 +66,45 @@ python dataloader.py \
   --overwrite
 ```
 
-Task 2 full-input caches:
+Run one Task 1 model:
 
 ```bash
-python dataloader.py \
+python train.py \
   --base_dir . \
-  --canonical_dir data/canonical/raw_feature_tables \
-  --output_dir data/cache/model_ready \
-  --task containment_time \
-  --representation all \
+  --task ia_failure \
+  --experiment_type smoke \
+  --representation tabular \
   --weather_days 5 \
   --input_protocol all \
+  --model xgboost \
+  --seed 553371 \
   --overwrite
 ```
 
-## Train Baselines
+The output is written to:
 
-Example Task 1 full-input run:
+```text
+experiments/ia_failure/smoke/tabular/weather5_all/xgboost_seed553371/
+```
+
+Important output files include:
+
+```text
+config.json
+metrics.json
+predictions_val.parquet
+predictions_test.parquet
+```
+
+## Reproducing the Main Experiments
+
+The official output directory format is:
+
+```text
+experiments/{task}/{experiment_type}/{representation}/weather{days}_{protocol}/{model}_seed{seed}/
+```
+
+For a full Task 1 run of XGBoost:
 
 ```bash
 python train.py \
@@ -100,7 +119,7 @@ python train.py \
   --overwrite
 ```
 
-Example neural patch-model run:
+For a spatial neural model:
 
 ```bash
 python train.py \
@@ -120,15 +139,61 @@ python train.py \
   --overwrite
 ```
 
-Experiment outputs are written to:
+For Task 2, first generate Task 2 caches:
 
-```text
-experiments/{task}/{experiment_type}/{representation}/weather{days}_{protocol}/{model}_seed{seed}/
+```bash
+python dataloader.py \
+  --base_dir . \
+  --canonical_dir data/canonical/raw_feature_tables \
+  --output_dir data/cache/model_ready \
+  --task containment_time \
+  --representation all \
+  --weather_days 5 \
+  --input_protocol all \
+  --overwrite
 ```
 
-## Supported Models
+Then run a Task 2 model:
 
-Task 1 and Task 2 use the same representation families:
+```bash
+python train.py \
+  --base_dir . \
+  --task containment_time \
+  --experiment_type full \
+  --representation tabular \
+  --weather_days 5 \
+  --input_protocol all \
+  --model xgboost \
+  --seed 553371 \
+  --overwrite
+```
+
+## Summarizing Results
+
+After full experiments finish:
+
+```bash
+python summarize_task1_full_all_seeds.py
+python summarize_task2_full_all_seeds.py
+```
+
+Summary CSV and Markdown files are written under:
+
+```text
+results/
+```
+
+## What Each Script Does
+
+- `pipeline.py`: optional raw-data canonicalization script. Reviewers do not
+  need to run this when using the Hugging Face canonical tables.
+- `dataloader.py`: converts canonical tables into model-ready caches.
+- `train.py`: trains tabular, temporal, spatial, and spatiotemporal baselines.
+- `summarize_*.py`: summarizes full-test and ablation experiment outputs.
+- `scripts/prepare_hf_release.py`: prepares the anonymous Hugging Face data
+  release.
+
+## Supported Models
 
 - Tabular: `logistic_regression`, `xgboost`, `mlp`
 - Temporal: `gru`, `tcn`, `transformer`
@@ -136,20 +201,10 @@ Task 1 and Task 2 use the same representation families:
 - Spatiotemporal: `convlstm`, `convgru`, `predrnn_v2`, `utae`, `swinlstm`,
   `resnet3d`
 
-## Summaries
+## Notes for Anonymous Review
 
-After experiments finish:
-
-```bash
-python summarize_task1_full_all_seeds.py
-python summarize_task2_full_all_seeds.py
-```
-
-Summary tables are written under `results/`.
-
-## Anonymous Review Notes
-
-This repository is prepared for anonymous review. It should not contain author
-names, affiliations, local machine paths, private data, experiment logs, or
-large generated caches.
+This repository contains code only. It does not include raw data, generated
+caches, experiment logs, checkpoints, or paper source files. The canonical data
+and Croissant metadata are hosted in the Hugging Face dataset repository linked
+above.
 
