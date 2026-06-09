@@ -32,10 +32,25 @@ PyTorch GPU wheels depend on the local CUDA version. If the default `torch`
 installation is not compatible with your system, install PyTorch following the
 official PyTorch instructions, then rerun `pip install -r requirements.txt`.
 
-Download the Hugging Face dataset into a temporary folder:
+Download the Hugging Face dataset into a temporary folder. The most portable
+method is `huggingface_hub`, which downloads Git LFS files without requiring a
+system `git-lfs` installation:
 
 ```bash
-git lfs install
+python - <<'PY'
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="WildfireIA/Anonymous-WildfireIA",
+    repo_type="dataset",
+    local_dir="hf_data",
+)
+PY
+```
+
+If `git-lfs` is already installed, this equivalent command also works:
+
+```bash
 git clone https://huggingface.co/datasets/WildfireIA/Anonymous-WildfireIA hf_data
 ```
 
@@ -207,4 +222,3 @@ This repository contains code only. It does not include raw data, generated
 caches, experiment logs, checkpoints, or paper source files. The canonical data
 and Croissant metadata are hosted in the Hugging Face dataset repository linked
 above.
-
