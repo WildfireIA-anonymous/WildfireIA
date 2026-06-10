@@ -67,6 +67,78 @@ The expected path is:
 data/canonical/raw_feature_tables/
 ```
 
+## Canonical Data and Input Contracts
+
+The Hugging Face release contains canonical tables, not prebuilt training
+caches. The main canonical files are:
+
+```text
+fire_events_natural_2016_2020.parquet
+master_features_natural_2016_2020.parquet
+gridmet_features_natural_2016_2020.parquet
+gridmet_daily_event_features_natural_2016_2020.parquet
+viirs_features_natural_2016_2020.parquet
+landfire_fuel_veg_features_natural_2016_2020.parquet
+topography_features_natural_2016_2020.parquet
+osm_access_features_natural_2016_2020.parquet
+population_features_natural_2016_2020.parquet
+event_*_patch_375m_*.parquet
+```
+
+The manifests in the same folder define the data contract:
+
+```text
+feature_manifest_natural.json
+label_manifest_natural.json
+temporal_protocol_manifest_natural.json
+event_patch_manifest_375m_natural.json
+```
+
+These files list feature groups, forbidden target/leakage columns, task labels,
+weather-day windows, and the event-centered 375 m patch geometry. The patch
+contract is a 29 x 29 grid centered on each FPA-FOD Natural wildfire event,
+with 375 m cells in EPSG:5070.
+
+`dataloader.py` converts these canonical tables into model-ready caches. The
+supported `--input_protocol` values are:
+
+```text
+metadata
+firms
+weather
+fuel
+vegetation
+topography
+access
+human
+metadata_vegetation
+metadata_fuel
+metadata_topography
+metadata_access
+metadata_human
+all
+all_without_fire
+all_without_weather
+all_without_vegetation
+all_without_fuel
+all_without_topography
+all_without_access
+all_without_human
+```
+
+For the official full-input setting, the generated Task 1 cache shapes are:
+
+```text
+tabular:        X_train.npy       [22576, 6029]
+temporal:       X_seq_train.npy   [22576, 5, 15]
+                X_static_train.npy[22576, 5940]
+spatial:        X_train.npy       [22576, 121, 29, 29]
+spatiotemporal: X_train.npy       [22576, 5, 47, 29, 29]
+```
+
+Each cache directory also contains `metadata.json`, feature/channel names,
+`sample_index_{split}.parquet`, `fire_id_{split}.npy`, and `y_{split}.npy`.
+
 Generate Task 1 model-ready caches from the canonical tables:
 
 ```bash
